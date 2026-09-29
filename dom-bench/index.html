@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOM 批量增删性能对比实验台</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>DOM 批量增删性能对比实验台</h1>
+  <p class="sub">直接 DOM · DocumentFragment · innerHTML · 模板克隆 —— 分片调度 / 可中断 / 内存可观测</p>
+</header>
+
+<main>
+  <!-- 控制面板 -->
+  <section class="panel controls">
+    <h2>控制面板</h2>
+    <div class="grid">
+      <label>节点总数
+        <select id="opt-count">
+          <option value="10000">1 万</option>
+          <option value="50000">5 万</option>
+          <option value="100000" selected>10 万</option>
+          <option value="200000">20 万</option>
+        </select>
+      </label>
+      <label>每片节点数
+        <select id="opt-chunk">
+          <option value="500">500</option>
+          <option value="1000" selected>1000</option>
+          <option value="2000">2000</option>
+          <option value="5000">5000</option>
+        </select>
+      </label>
+      <label>调度方式
+        <select id="opt-scheduler">
+          <option value="idle" selected>requestIdleCallback</option>
+          <option value="timeout">setTimeout(0)</option>
+          <option value="rAF">requestAnimationFrame</option>
+        </select>
+      </label>
+      <label>内存采样间隔（片）
+        <select id="opt-sample">
+          <option value="1">每片</option>
+          <option value="2" selected>每 2 片</option>
+          <option value="5">每 5 片</option>
+          <option value="10">每 10 片</option>
+        </select>
+      </label>
+    </div>
+    <div class="btn-row">
+      <button id="btn-run-all" class="primary">依次运行全部方案</button>
+      <button data-strategy="direct">直接 DOM</button>
+      <button data-strategy="fragment">DocumentFragment</button>
+      <button data-strategy="innerHTML">innerHTML</button>
+      <button data-strategy="template">模板克隆</button>
+    </div>
+    <div class="btn-row">
+      <button id="btn-stop" class="danger" disabled>中断</button>
+      <button id="btn-clear" class="warn">清空节点</button>
+      <button id="btn-reset">重置结果</button>
+    </div>
+    <div id="status" class="status">就绪。点击上方按钮开始测试。</div>
+  </section>
+
+  <!-- 实时指标 -->
+  <section class="panel metrics">
+    <h2>实时指标</h2>
+    <div class="metric-grid">
+      <div class="metric"><span class="k">当前方案</span><span class="v" id="m-strategy">—</span></div>
+      <div class="metric"><span class="k">阶段</span><span class="v" id="m-phase">—</span></div>
+      <div class="metric"><span class="k">进度</span><span class="v" id="m-progress">0 / 0</span></div>
+      <div class="metric"><span class="k">已耗时</span><span class="v" id="m-elapsed">0 ms</span></div>
+      <div class="metric"><span class="k">JS 堆内存</span><span class="v" id="m-memory">N/A</span></div>
+      <div class="metric"><span class="k">长任务(>50ms)</span><span class="v" id="m-longtask">0 次 / 0 ms</span></div>
+      <div class="metric"><span class="k">漂移斜率</span><span class="v" id="m-drift">—</span></div>
+      <div class="metric"><span class="k">容器节点数</span><span class="v" id="m-nodes">0</span></div>
+    </div>
+    <progress id="progress-bar" value="0" max="100"></progress>
+  </section>
+
+  <!-- 性能曲线 -->
+  <section class="panel chart-panel">
+    <h2>性能曲线 <span class="hint">（蓝：每片耗时 ms · 绿：JS 堆内存 MB）</span></h2>
+    <canvas id="chart" width="960" height="280"></canvas>
+  </section>
+
+  <!-- 结果对比表 -->
+  <section class="panel results">
+    <h2>结果对比</h2>
+    <table id="result-table">
+      <thead>
+        <tr>
+          <th>方案</th><th>插入耗时</th><th>删除耗时</th><th>总耗时</th>
+          <th>峰值内存</th><th>内存增量</th><th>片均耗时</th><th>P95 片耗时</th>
+          <th>长任务</th><th>漂移</th><th>一致性</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- 实验容器（视觉隐藏但参与布局计算可切换） -->
+  <section class="panel sandbox-panel">
+    <h2>实验容器 <span class="hint">（批量节点挂载点，已限高滚动）</span></h2>
+    <div id="sandbox"></div>
+  </section>
+
+  <template id="node-tpl">
+    <div class="bench-node"><span class="idx"></span><span class="txt">benchmark-node</span></div>
+  </template>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
